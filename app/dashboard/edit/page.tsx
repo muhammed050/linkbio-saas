@@ -8,6 +8,8 @@ import { createPageAction } from './actions'
 import EditorStudio from './editor-studio'
 import styles from './editor.module.css'
 
+export const dynamic='force-dynamic'
+
 export default async function EditPage(){
  const profile=await getCurrentProfile();
  if(!profile)return null;
