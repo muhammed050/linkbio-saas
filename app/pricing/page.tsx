@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Check, Lock, Sparkles, Crown } from "lucide-react";
 import { CheckoutButton } from "@/components/billing/checkout-button";
+import { SubscriptionCard } from "@/components/billing/subscription-card";
 import { MarketingHeader } from "@/components/public/marketing-header";
 import styles from "./pricing-page.module.css";
 
@@ -20,6 +21,8 @@ export default function PricingPage() {
           <h1>ابدأ مجاناً.<br />ادفع فقط عندما تحتاج المزيد.</h1>
           <p>النسخة المجانية ليست تجربة ناقصة: ابنِ صفحة كاملة وابدأ بجمهورك. عندما تحتاج التحليلات، البيع المتقدم، النطاق والتخصيص الاحترافي، انتقل إلى Pro.</p>
         </header>
+
+        <SubscriptionCard />
 
         <section className={styles.grid} aria-label="خطط الاشتراك">
           {plans.map((plan) => (
