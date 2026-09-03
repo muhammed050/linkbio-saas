@@ -5,12 +5,12 @@ export interface PlanLimits { links:number; products:number; services:number; se
 export interface PlanInfo { name:string; priceCents:number; currency:string; billingInterval:'month'; features:string[] }
 
 export const PLAN_LIMITS:Record<BillingPlanCode,PlanLimits>={
-  free:{links:5,products:0,services:0,sections:2,customDomain:false,analytics:false,qrCode:false,seoMetadata:false},
+  free:{links:10,products:1,services:1,sections:3,customDomain:false,analytics:false,qrCode:false,seoMetadata:false},
   pro:{links:-1,products:-1,services:-1,sections:-1,customDomain:true,analytics:true,qrCode:true,seoMetadata:true},
   business:{links:-1,products:-1,services:-1,sections:-1,customDomain:true,analytics:true,qrCode:true,seoMetadata:true},
 }
 export const PLAN_INFO:Record<BillingPlanCode,PlanInfo>={
-  free:{name:'Free',priceCents:0,currency:'USD',billingInterval:'month',features:['5 links','2 sections']},
+  free:{name:'Free',priceCents:0,currency:'USD',billingInterval:'month',features:['10 links','3 sections','1 product + 1 service']},
   pro:{name:'Pro',priceCents:2900,currency:'USD',billingInterval:'month',features:['Unlimited content','Analytics','Custom domain']},
   business:{name:'Business',priceCents:7900,currency:'USD',billingInterval:'month',features:['Unlimited content','Analytics','Custom domain']},
 }
