@@ -1,0 +1,1 @@
+export default function Loading(){return <main className="editor-loading" dir="rtl"><div className="editor-loading-card"><div className="editor-loading-bar"/><div className="editor-loading-grid"><span/><span/><span/><span/><span/><span/></div><p>جاري تجهيز الاستوديو…</p></div></main>}
