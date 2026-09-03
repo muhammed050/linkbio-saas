@@ -1,3 +1,4 @@
+.root{display:block}
 :global(.editor-page){min-height:100vh;background:var(--cream);padding:clamp(28px,5vw,64px);color:var(--ink)}
 :global(.editor-page) :global(.editor-header){width:min(100%,1180px);margin:0 auto 28px;display:flex;justify-content:space-between;gap:28px;align-items:flex-end}
 :global(.editor-page) :global(.editor-header) h1{margin:8px 0;font-size:clamp(2rem,5vw,4rem);letter-spacing:-.07em;line-height:1.05}
