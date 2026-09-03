@@ -2,64 +2,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowUpLeft, CalendarDays, ExternalLink, ShoppingBag } from "lucide-react";
 
-type PublicSection = {
-  id: string;
-  type: string;
-  title: string | null;
-  position: number;
-  links: { id: string; section_id: string; title: string; url: string; position: number }[];
-  products: { id: string; section_id: string; name: string; description: string | null; price_cents: number; currency: string; checkout_url: string | null; whatsapp_number: string | null; position: number }[];
-  services: { id: string; section_id: string; name: string; description: string | null; price_cents: number | null; currency: string; duration_minutes: number | null; booking_url: string | null; whatsapp_number: string | null; position: number }[];
-};
-
-export type PublicProfile = {
-  username: string;
-  name: string;
-  bio: string | null;
-  avatarUrl: string | null;
-  theme: "sand" | "midnight" | "violet" | "paper" | "forest" | "coral" | "ocean" | "mono";
-  layout: "minimal" | "creator" | "store" | "business" | "restaurant" | "services" | "luxury" | "bento";
-  sections: PublicSection[];
-  socialLinks: { id: string; platform: string; url: string; position: number }[];
-  metadata: { title: string; description: string | null };
-};
-
-function publicUrl(value: string | null) {
-  if (!value) return null;
-  try {
-    const url = new URL(value);
-    return ["http:", "https:", "mailto:", "tel:"].includes(url.protocol) ? url.toString() : null;
-  } catch {
-    return null;
-  }
+type StyleConfig={variant?:string;width?:string};
+type PublicSection={id:string;type:string;title:string|null;position:number;style?:StyleConfig;links:{id:string;section_id:string;title:string;url:string;position:number;image_url?:string|null;style?:StyleConfig}[];products:{id:string;section_id:string;name:string;description:string|null;price_cents:number;currency:string;checkout_url:string|null;whatsapp_number:string|null;position:number;image_url?:string|null;style?:StyleConfig}[];services:{id:string;section_id:string;name:string;description:string|null;price_cents:number|null;currency:string;duration_minutes:number|null;booking_url:string|null;whatsapp_number:string|null;position:number;image_url?:string|null;style?:StyleConfig}[]};
+export type PublicProfile={username:string;name:string;bio:string|null;avatarUrl:string|null;theme:"sand"|"midnight"|"violet"|"paper"|"forest"|"coral"|"ocean"|"mono";layout:"minimal"|"creator"|"store"|"business"|"restaurant"|"services"|"luxury"|"bento";design:Record<string,unknown>;sections:PublicSection[];socialLinks:{id:string;platform:string;url:string;position:number;image_url?:string|null;style?:StyleConfig}[];metadata:{title:string;description:string|null}};
+function publicUrl(value:string|null){if(!value)return null;try{const url=new URL(value);return ["http:","https:","mailto:","tel:"].includes(url.protocol)?url.toString():null}catch{return null}}
+function whatsappUrl(number:string|null){const digits=number?.replace(/\D/g,"");return digits?`https://wa.me/${digits}`:null}
+function price(value:number|null,currency:string){if(value===null)return null;try{return new Intl.NumberFormat("ar-SA",{style:"currency",currency}).format(value/100)}catch{return `${value/100} ${currency}`}}
+function initials(name:string){return name.trim().slice(0,1).toUpperCase()}
+function ExternalAnchor({href,children,className}:{href:string|null;children:React.ReactNode;className:string}){if(!href)return <div className={className}>{children}</div>;return <a className={className} href={href} rel={href.startsWith("http")?"noreferrer":undefined}>{children}</a>}
+function buttonClass(style?:StyleConfig){return `profile-link variant-${style?.variant||"soft"}`}
+function PublicSectionContent({section}:{section:PublicSection}){
+ if(section.type==="links"&&section.links.length)return <section className={`profile-section section-${section.style?.variant||"plain"}`}><h2>{section.title||"روابط"}</h2><div className="profile-links">{section.links.map(item=><ExternalAnchor key={item.id} className={buttonClass(item.style)} href={publicUrl(item.url)}>{item.image_url&&<Image className="profile-link-image" src={item.image_url} alt="" width={44} height={44} unoptimized/>}<strong>{item.title}</strong><ArrowUpLeft size={18} aria-hidden="true"/></ExternalAnchor>)}</div></section>;
+ if(section.type==="products"&&section.products.length)return <section className={`profile-products section-${section.style?.variant||"plain"}`}><h2>{section.title||"المنتجات"}</h2><div>{section.products.map(item=><ExternalAnchor key={item.id} className={buttonClass(item.style)} href={publicUrl(item.checkout_url)||whatsappUrl(item.whatsapp_number)}>{item.image_url&&<Image className="profile-link-image" src={item.image_url} alt="" width={48} height={48} unoptimized/>}<span><strong>{item.name}</strong>{item.description&&<small>{item.description}</small>}{price(item.price_cents,item.currency)&&<b>{price(item.price_cents,item.currency)}</b>}</span><ShoppingBag size={17} aria-hidden="true"/></ExternalAnchor>)}</div></section>;
+ if(section.type==="services"&&section.services.length)return <section className={`profile-section section-${section.style?.variant||"plain"}`}><h2>{section.title||"الخدمات"}</h2><div className="profile-links">{section.services.map(item=><ExternalAnchor key={item.id} className={buttonClass(item.style)} href={publicUrl(item.booking_url)||whatsappUrl(item.whatsapp_number)}>{item.image_url&&<Image className="profile-link-image" src={item.image_url} alt="" width={44} height={44} unoptimized/>}<span><strong>{item.name}</strong>{(item.description||item.duration_minutes||price(item.price_cents,item.currency))&&<small>{[item.description,item.duration_minutes?`${item.duration_minutes} دقيقة`:null,price(item.price_cents,item.currency)].filter(Boolean).join(" · ")}</small>}</span><CalendarDays size={18} aria-hidden="true"/></ExternalAnchor>)}</div></section>;
+ return null;
 }
-
-function whatsappUrl(number: string | null) {
-  const digits = number?.replace(/\D/g, "");
-  return digits ? `https://wa.me/${digits}` : null;
-}
-
-function price(value: number | null, currency: string) {
-  if (value === null) return null;
-  try { return new Intl.NumberFormat("ar-SA", { style: "currency", currency }).format(value / 100); } catch { return `${value / 100} ${currency}`; }
-}
-
-function initials(name: string) {
-  return name.trim().slice(0, 1).toUpperCase();
-}
-
-function ExternalAnchor({ href, children, className }: { href: string | null; children: React.ReactNode; className: string }) {
-  if (!href) return <div className={className}>{children}</div>;
-  return <a className={className} href={href} rel={href.startsWith("http") ? "noreferrer" : undefined}>{children}</a>;
-}
-
-function PublicSectionContent({ section }: { section: PublicSection }) {
-  if (section.type === "links" && section.links.length) return <section className="profile-section"><h2>{section.title || "روابط"}</h2><div className="profile-links">{section.links.map((item) => <ExternalAnchor key={item.id} className="profile-link" href={publicUrl(item.url)}><strong>{item.title}</strong><ArrowUpLeft size={18} aria-hidden="true" /></ExternalAnchor>)}</div></section>;
-  if (section.type === "products" && section.products.length) return <section className="profile-products"><h2>{section.title || "المنتجات"}</h2><div>{section.products.map((item) => <ExternalAnchor key={item.id} className="profile-product" href={publicUrl(item.checkout_url) || whatsappUrl(item.whatsapp_number)}><span><strong>{item.name}</strong>{item.description && <small>{item.description}</small>}{price(item.price_cents, item.currency) && <b>{price(item.price_cents, item.currency)}</b>}</span><ShoppingBag size={17} aria-hidden="true" /></ExternalAnchor>)}</div></section>;
-  if (section.type === "services" && section.services.length) return <section className="profile-section"><h2>{section.title || "الخدمات"}</h2><div className="profile-links">{section.services.map((item) => <ExternalAnchor key={item.id} className="profile-link" href={publicUrl(item.booking_url) || whatsappUrl(item.whatsapp_number)}><span><strong>{item.name}</strong>{(item.description || item.duration_minutes || price(item.price_cents, item.currency)) && <small>{[item.description, item.duration_minutes ? `${item.duration_minutes} دقيقة` : null, price(item.price_cents, item.currency)].filter(Boolean).join(" · ")}</small>}</span><CalendarDays size={18} aria-hidden="true" /></ExternalAnchor>)}</div></section>;
-  return null;
-}
-
-export function PublicProfilePage({ profile }: { profile: PublicProfile }) {
-  return <main id="main-content" className={`profile-page theme-${profile.theme} layout-${profile.layout}`} dir="rtl"><Link className="profile-brand" href="/" aria-label="العودة إلى لينكا">لينكا<span>·</span></Link><div className="profile-shell"><header className="profile-header"><div className="profile-avatar">{profile.avatarUrl ? <Image src={profile.avatarUrl} alt="" width={82} height={82} unoptimized /> : initials(profile.name)}</div><div className="profile-intro"><p dir="ltr">@{profile.username}</p><h1>{profile.name}</h1>{profile.bio && <p className="profile-bio">{profile.bio}</p>}</div></header><div className="profile-content">{profile.sections.map((section) => <PublicSectionContent key={section.id} section={section} />)}{profile.socialLinks.length > 0 && <nav className="profile-social-links" aria-label="روابط التواصل">{profile.socialLinks.map((item) => <ExternalAnchor key={item.id} className="profile-social-link" href={publicUrl(item.url)}>{item.platform}<ExternalLink size={14} aria-hidden="true" /></ExternalAnchor>)}</nav>}</div><footer className="profile-footer">صُنع عبر <Link href="/">لينكا</Link></footer></div></main>;
-}
+export function PublicProfilePage({profile}:{profile:PublicProfile}){const d=profile.design||{};const style={"--profile-accent":String(d.accentColor||"#9bb55c"),"--profile-button-radius":`${Number(d.buttonRadius??18)}px`,`--profile-card-opacity`:`${Number(d.cardOpacity??100)/100}`};return <main id="main-content" style={style as React.CSSProperties} className={`profile-page theme-${profile.theme} layout-${profile.layout} align-${d.textAlign||"center"}`} dir="rtl"><Link className="profile-brand" href="/" aria-label="العودة إلى لينكا">لينكا<span>·</span></Link><div className="profile-shell"><header className="profile-header"><div className={`profile-avatar shape-${d.avatarShape||"circle"}`}>{profile.avatarUrl?<Image src={profile.avatarUrl} alt="" width={82} height={82} unoptimized/>:initials(profile.name)}</div><div className="profile-intro"><p dir="ltr">@{profile.username}</p><h1>{profile.name}</h1>{profile.bio&&<p className="profile-bio">{profile.bio}</p>}</div></header><div className="profile-content">{profile.sections.map(section=><PublicSectionContent key={section.id} section={section}/>)}{profile.socialLinks.length>0&&<nav className="profile-social-links" aria-label="روابط التواصل">{profile.socialLinks.map(item=><ExternalAnchor key={item.id} className="profile-social-link" href={publicUrl(item.url)}>{item.image_url?<Image src={item.image_url} alt="" width={28} height={28} unoptimized/>:<span className="social-letter">{item.platform.slice(0,1).toUpperCase()}</span>}<span>{item.platform}</span><ExternalLink size={14} aria-hidden="true"/></ExternalAnchor>)}</nav>}</div><footer className="profile-footer">صُنع عبر <Link href="/">لينكا</Link></footer></div></main>}
