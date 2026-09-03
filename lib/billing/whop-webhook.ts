@@ -91,6 +91,11 @@ function nestedId(data: Record<string, unknown>, key: string) {
   return isRecord(candidate) ? stringValue(candidate.id) : null
 }
 
+function nestedEmail(data: Record<string, unknown>, key: string) {
+  const candidate = data[key]
+  return isRecord(candidate) ? stringValue(candidate.email) : null
+}
+
 export async function processWhopWebhook(payload: unknown) {
   const parsed = webhookPayloadSchema.safeParse(payload)
   if (!parsed.success) throw new Error('Webhook payload does not match the expected Whop event envelope')
@@ -137,8 +142,9 @@ async function synchronizeMembership(
   const subscriptionId = stringValue(data.id)
   const providerPlanId = nestedId(data, 'plan') ?? stringValue(data.plan_id)
   const providerUserId = nestedId(data, 'user') ?? stringValue(data.user_id)
+  const providerEmail = nestedEmail(data, 'user') ?? stringValue(data.user_email)
   const metadata = isRecord(data.metadata) ? data.metadata : {}
-  const profileId = stringValue(metadata.user_id)
+  const metadataProfileId = stringValue(metadata.user_id)
   if (!subscriptionId || !providerPlanId) throw new Error('Membership event is missing subscription or plan identifier')
 
   const planCode = getPlanFromWhopPlanId(providerPlanId)
@@ -152,11 +158,20 @@ async function synchronizeMembership(
   if (planError) throw planError
   if (!plan) throw new Error('Membership event references an unavailable local plan')
 
-  let profileQuery = admin.from('profiles').select('id').limit(1)
-  if (profileId) profileQuery = profileQuery.eq('id', profileId)
-  else if (providerUserId) profileQuery = profileQuery.eq('whop_user_id', providerUserId)
-  else throw new Error('Membership event cannot be linked to a profile')
-  const { data: profile, error: profileError } = await profileQuery.maybeSingle()
+  let profileId = metadataProfileId
+  if (!profileId && providerUserId) {
+    const { data: byWhopUser, error } = await admin.from('profiles').select('id').eq('whop_user_id', providerUserId).maybeSingle()
+    if (error) throw error
+    profileId = byWhopUser?.id ?? null
+  }
+  if (!profileId && providerEmail) {
+    const { data: byEmail, error } = await admin.rpc('find_profile_by_email', { p_email: providerEmail })
+    if (error) throw error
+    profileId = byEmail?.[0]?.id ?? null
+  }
+  if (!profileId) throw new Error('Membership event cannot be linked to a profile')
+
+  const { data: profile, error: profileError } = await admin.from('profiles').select('id').eq('id', profileId).maybeSingle()
   if (profileError) throw profileError
   if (!profile) throw new Error('Membership event profile was not found')
 
@@ -170,13 +185,13 @@ async function synchronizeMembership(
     p_provider_product_id: nestedId(data, 'product') ?? stringValue(data.product_id),
     p_provider_price_id: providerPlanId,
     p_status: status,
-    p_current_period_start: timestampValue(data.current_period_start),
-    p_current_period_end: timestampValue(data.current_period_end) ?? timestampValue(data.expires_at),
+    p_current_period_start: timestampValue(data.current_period_start) ?? timestampValue(data.renewal_period_start),
+    p_current_period_end: timestampValue(data.current_period_end) ?? timestampValue(data.renewal_period_end) ?? timestampValue(data.expires_at),
     p_cancel_at_period_end: data.cancel_at_period_end === true,
     p_trial_end: timestampValue(data.trial_end),
     p_canceled_at: timestampValue(data.canceled_at),
     p_ended_at: timestampValue(data.ended_at),
-    p_provider_metadata: jsonValue(metadata),
+    p_provider_metadata: jsonValue({ ...metadata, provider_email: providerEmail }),
     p_provider_created_at: providerCreatedAt,
   })
   if (applyError) throw applyError
