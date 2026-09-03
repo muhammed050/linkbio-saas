@@ -77,7 +77,8 @@ export async function POST(request: Request) {
   try { supabase = await createAdminClient() } catch (error) { console.error('Analytics configuration failed:', error); return Response.json({ error: 'Analytics is unavailable' }, { status: 503 }) }
 
   try {
-    const allowed = await supabase.rpc('check_analytics_rate_limit', { p_key_hash: getClientKey(request), p_limit: rateLimitMaxRequests, p_window_seconds: rateLimitWindowSeconds })
+    const rpc = supabase.rpc as unknown as (name: string, args: { p_key_hash: string; p_limit: number; p_window_seconds: number }) => Promise<{ data: boolean | null; error: unknown }>
+    const allowed = await rpc('check_analytics_rate_limit', { p_key_hash: getClientKey(request), p_limit: rateLimitMaxRequests, p_window_seconds: rateLimitWindowSeconds })
     if (allowed.error) throw allowed.error
     if (!allowed.data) return Response.json({ error: 'Too many analytics events' }, { status: 429, headers: { 'Retry-After': String(rateLimitWindowSeconds) } })
   } catch (error) {
