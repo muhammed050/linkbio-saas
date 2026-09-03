@@ -7,7 +7,8 @@ import type { Database, Json } from '@/types/database'
 const webhookPayloadSchema = z.object({
   id: z.string().min(1).max(255),
   type: z.string().min(1).max(255),
-  created_at: z.union([z.number().finite(), z.string().min(1)]),
+  timestamp: z.union([z.number().finite(), z.string().min(1)]).optional(),
+  created_at: z.union([z.number().finite(), z.string().min(1)]).optional(),
   data: z.record(z.string(), z.unknown()).optional(),
 }).passthrough()
 
@@ -101,7 +102,7 @@ export async function processWhopWebhook(payload: unknown) {
   if (!parsed.success) throw new Error('Webhook payload does not match the expected Whop event envelope')
 
   const event = parsed.data
-  const providerCreatedAt = timestampValue(event.created_at)
+  const providerCreatedAt = timestampValue(event.timestamp ?? event.created_at)
   if (!providerCreatedAt) throw new Error('Webhook event is missing a valid provider creation timestamp')
 
   const admin = await createAdminClient()
@@ -150,11 +151,7 @@ async function synchronizeMembership(
   const planCode = getPlanFromWhopPlanId(providerPlanId)
   if (!planCode) throw new Error('Membership event references an unconfigured Whop plan')
 
-  const { data: plan, error: planError } = await admin
-    .from('plans')
-    .select('id')
-    .eq('code', planCode)
-    .maybeSingle()
+  const { data: plan, error: planError } = await admin.from('plans').select('id').eq('code', planCode).maybeSingle()
   if (planError) throw planError
   if (!plan) throw new Error('Membership event references an unavailable local plan')
 
