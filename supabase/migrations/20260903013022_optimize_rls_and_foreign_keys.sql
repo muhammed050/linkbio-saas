@@ -1,0 +1,16 @@
+drop policy if exists plans_admin_all on public.plans;
+drop policy if exists plan_prices_admin_all on public.plan_prices;
+drop policy if exists subscriptions_admin_select on public.subscriptions;
+create policy plans_admin_write on public.plans for insert to authenticated with check ((select private.is_admin()));
+create policy plans_admin_update on public.plans for update to authenticated using ((select private.is_admin())) with check ((select private.is_admin()));
+create policy plans_admin_delete on public.plans for delete to authenticated using ((select private.is_admin()));
+create policy plans_select on public.plans for select to anon,authenticated using (is_active or (select private.is_admin()));
+create policy plan_prices_admin_write on public.plan_prices for insert to authenticated with check ((select private.is_admin()));
+create policy plan_prices_admin_update on public.plan_prices for update to authenticated using ((select private.is_admin())) with check ((select private.is_admin()));
+create policy plan_prices_admin_delete on public.plan_prices for delete to authenticated using ((select private.is_admin()));
+create policy plan_prices_select on public.plan_prices for select to anon,authenticated using (is_active or (select private.is_admin()));
+create policy subscriptions_select on public.subscriptions for select to authenticated using (profile_id=(select auth.uid()) or (select private.is_admin()));
+create index if not exists analytics_events_session_id_idx on public.analytics_events(session_id);
+create index if not exists analytics_page_views_session_id_idx on public.analytics_page_views(session_id);
+create index if not exists media_section_id_idx on public.media(section_id);
+create index if not exists subscriptions_plan_id_idx on public.subscriptions(plan_id);
