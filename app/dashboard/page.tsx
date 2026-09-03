@@ -6,6 +6,9 @@ import { PLAN_INFO, type BillingPlanCode } from '@/lib/billing/plans'
 import { getAnalytics } from '@/lib/db/analytics'
 import { getPage } from '@/lib/db/pages'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const planNames = { free: 'مجاني', pro: 'Pro', business: 'Business' } as const
 
 export default async function DashboardPage() {
