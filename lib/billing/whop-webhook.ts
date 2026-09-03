@@ -176,6 +176,11 @@ async function synchronizeMembership(
   if (!profile) throw new Error('Membership event profile was not found')
 
   const status = subscriptionStatus(data)
+  const providerMetadata = {
+    ...metadata,
+    provider_email: providerEmail,
+    manage_url: stringValue(data.manage_url),
+  }
   const { error: applyError } = await admin.rpc('apply_whop_membership_event', {
     p_event_id: eventId,
     p_profile_id: profile.id,
@@ -191,7 +196,7 @@ async function synchronizeMembership(
     p_trial_end: timestampValue(data.trial_end),
     p_canceled_at: timestampValue(data.canceled_at),
     p_ended_at: timestampValue(data.ended_at),
-    p_provider_metadata: jsonValue({ ...metadata, provider_email: providerEmail }),
+    p_provider_metadata: jsonValue(providerMetadata),
     p_provider_created_at: providerCreatedAt,
   })
   if (applyError) throw applyError
