@@ -14,11 +14,9 @@ const eventSchema = z.discriminatedUnion('eventType', [
 ])
 
 type AnalyticsEvent = z.infer<typeof eventSchema>
-
-const rateLimitWindowMs = 60_000
+const rateLimitWindowSeconds = 60
 const rateLimitMaxRequests = 30
 const maximumBodySize = 1_024
-const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>()
 
 function getClientKey(request: Request) {
   const forwardedFor = request.headers.get('x-forwarded-for')
@@ -26,80 +24,33 @@ function getClientKey(request: Request) {
   return createHash('sha256').update(ip).digest('hex')
 }
 
-function isRateLimited(request: Request) {
-  const now = Date.now()
-
-  for (const [key, bucket] of rateLimitBuckets) {
-    if (bucket.resetAt <= now) rateLimitBuckets.delete(key)
-  }
-
-  const key = getClientKey(request)
-  const bucket = rateLimitBuckets.get(key)
-
-  if (!bucket || bucket.resetAt <= now) {
-    if (rateLimitBuckets.size >= 10_000) {
-      const oldestKey = rateLimitBuckets.keys().next().value
-      if (oldestKey) rateLimitBuckets.delete(oldestKey)
-    }
-    rateLimitBuckets.set(key, { count: 1, resetAt: now + rateLimitWindowMs })
-    return false
-  }
-
-  bucket.count += 1
-  return bucket.count > rateLimitMaxRequests
-}
-
 async function readJsonBody(request: Request) {
   if (!request.body) return ''
-
   const reader = request.body.getReader()
   const chunks: Uint8Array[] = []
   let size = 0
-
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
     size += value.byteLength
-    if (size > maximumBodySize) {
-      await reader.cancel()
-      return null
-    }
+    if (size > maximumBodySize) { await reader.cancel(); return null }
     chunks.push(value)
   }
-
   const body = new Uint8Array(size)
   let offset = 0
-  for (const chunk of chunks) {
-    body.set(chunk, offset)
-    offset += chunk.byteLength
-  }
+  for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength }
   return new TextDecoder().decode(body)
 }
 
-async function targetBelongsToPublishedPage(
-  supabase: Awaited<ReturnType<typeof createAdminClient>>,
-  event: Exclude<AnalyticsEvent, { eventType: 'page_view' }>
-) {
+async function targetBelongsToPublishedPage(supabase: Awaited<ReturnType<typeof createAdminClient>>, event: Exclude<AnalyticsEvent, { eventType: 'page_view' }>) {
   switch (event.eventType) {
     case 'social_click': {
-      const { data, error } = await supabase
-        .from('social_links')
-        .select('id')
-        .eq('id', event.targetId)
-        .eq('page_id', event.pageId)
-        .eq('is_visible', true)
-        .maybeSingle()
+      const { data, error } = await supabase.from('social_links').select('id').eq('id', event.targetId).eq('page_id', event.pageId).eq('is_visible', true).maybeSingle()
       if (error) throw error
       return Boolean(data)
     }
     case 'media_view': {
-      const { data, error } = await supabase
-        .from('media')
-        .select('id')
-        .eq('id', event.targetId)
-        .eq('page_id', event.pageId)
-        .eq('is_visible', true)
-        .maybeSingle()
+      const { data, error } = await supabase.from('media').select('id').eq('id', event.targetId).eq('page_id', event.pageId).eq('is_visible', true).maybeSingle()
       if (error) throw error
       return Boolean(data)
     }
@@ -107,21 +58,10 @@ async function targetBelongsToPublishedPage(
     case 'product_click':
     case 'service_click': {
       const table = event.eventType === 'link_click' ? 'links' : event.eventType === 'product_click' ? 'products' : 'services'
-      const { data: target, error: targetError } = await supabase
-        .from(table)
-        .select('section_id, is_visible')
-        .eq('id', event.targetId)
-        .maybeSingle()
+      const { data: target, error: targetError } = await supabase.from(table).select('section_id, is_visible').eq('id', event.targetId).maybeSingle()
       if (targetError) throw targetError
       if (!target?.is_visible) return false
-
-      const { data: section, error: sectionError } = await supabase
-        .from('page_sections')
-        .select('id')
-        .eq('id', target.section_id)
-        .eq('page_id', event.pageId)
-        .eq('is_visible', true)
-        .maybeSingle()
+      const { data: section, error: sectionError } = await supabase.from('page_sections').select('id').eq('id', target.section_id).eq('page_id', event.pageId).eq('is_visible', true).maybeSingle()
       if (sectionError) throw sectionError
       return Boolean(section)
     }
@@ -130,19 +70,19 @@ async function targetBelongsToPublishedPage(
 
 export async function POST(request: Request) {
   const contentLength = Number(request.headers.get('content-length'))
-  if (Number.isFinite(contentLength) && contentLength > maximumBodySize) {
-    return Response.json({ error: 'Request body is too large' }, { status: 413 })
-  }
+  if (Number.isFinite(contentLength) && contentLength > maximumBodySize) return Response.json({ error: 'Request body is too large' }, { status: 413 })
+  if (!request.headers.get('content-type')?.includes('application/json')) return Response.json({ error: 'Content-Type must be application/json' }, { status: 415 })
 
-  if (!request.headers.get('content-type')?.includes('application/json')) {
-    return Response.json({ error: 'Content-Type must be application/json' }, { status: 415 })
-  }
+  let supabase: Awaited<ReturnType<typeof createAdminClient>>
+  try { supabase = await createAdminClient() } catch (error) { console.error('Analytics configuration failed:', error); return Response.json({ error: 'Analytics is unavailable' }, { status: 503 }) }
 
-  if (isRateLimited(request)) {
-    return Response.json(
-      { error: 'Too many analytics events' },
-      { status: 429, headers: { 'Retry-After': String(rateLimitWindowMs / 1_000) } }
-    )
+  try {
+    const allowed = await supabase.rpc('check_analytics_rate_limit', { p_key_hash: getClientKey(request), p_limit: rateLimitMaxRequests, p_window_seconds: rateLimitWindowSeconds })
+    if (allowed.error) throw allowed.error
+    if (!allowed.data) return Response.json({ error: 'Too many analytics events' }, { status: 429, headers: { 'Retry-After': String(rateLimitWindowSeconds) } })
+  } catch (error) {
+    console.error('Analytics rate limiter failed:', error)
+    return Response.json({ error: 'Analytics is temporarily unavailable' }, { status: 503 })
   }
 
   let payload: unknown
@@ -150,38 +90,17 @@ export async function POST(request: Request) {
     const rawBody = await readJsonBody(request)
     if (rawBody === null) return Response.json({ error: 'Request body is too large' }, { status: 413 })
     payload = JSON.parse(rawBody)
-  } catch {
-    return Response.json({ error: 'Invalid JSON request body' }, { status: 400 })
-  }
+  } catch { return Response.json({ error: 'Invalid JSON request body' }, { status: 400 }) }
 
   const parsed = eventSchema.safeParse(payload)
-  if (!parsed.success) {
-    return Response.json({ error: 'Invalid analytics event' }, { status: 400 })
-  }
+  if (!parsed.success) return Response.json({ error: 'Invalid analytics event' }, { status: 400 })
 
   try {
-    const supabase = await createAdminClient()
-    const { data: page, error: pageError } = await supabase
-      .from('pages')
-      .select('id')
-      .eq('id', parsed.data.pageId)
-      .eq('is_published', true)
-      .maybeSingle()
-
+    const { data: page, error: pageError } = await supabase.from('pages').select('id').eq('id', parsed.data.pageId).eq('is_published', true).maybeSingle()
     if (pageError) throw pageError
     if (!page) return Response.json({ error: 'Published page not found' }, { status: 404 })
-
-    if (parsed.data.eventType !== 'page_view' && !(await targetBelongsToPublishedPage(supabase, parsed.data))) {
-      return Response.json({ error: 'Analytics target not found' }, { status: 404 })
-    }
-
-    const { error: insertError } = await supabase.from('analytics_events').insert({
-      page_id: page.id,
-      event_type: parsed.data.eventType,
-      target_id: parsed.data.eventType === 'page_view' ? null : parsed.data.targetId,
-      metadata: {},
-    })
-
+    if (parsed.data.eventType !== 'page_view' && !(await targetBelongsToPublishedPage(supabase, parsed.data))) return Response.json({ error: 'Analytics target not found' }, { status: 404 })
+    const { error: insertError } = await supabase.from('analytics_events').insert({ page_id: page.id, event_type: parsed.data.eventType, target_id: parsed.data.eventType === 'page_view' ? null : parsed.data.targetId, metadata: {} })
     if (insertError) throw insertError
     return new Response(null, { status: 204 })
   } catch (error) {
