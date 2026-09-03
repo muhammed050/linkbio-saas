@@ -15,11 +15,15 @@ export const PLAN_INFO:Record<BillingPlanCode,PlanInfo>={
   business:{name:'Business',priceCents:7900,currency:'USD',billingInterval:'month',features:['Unlimited content','Analytics','Custom domain']},
 }
 
+const DEFAULT_WHOP_PLAN_IDS:Record<PaidBillingPlanCode,string>={
+  pro:'plan_LEZGjeiVurzLH',
+  business:'',
+}
 const WHOP_ENV_BY_PLAN:Record<PaidBillingPlanCode,'WHOP_PLAN_PRO'|'WHOP_PLAN_BUSINESS'>={pro:'WHOP_PLAN_PRO',business:'WHOP_PLAN_BUSINESS'}
 export function isPaidBillingPlan(value:unknown):value is PaidBillingPlanCode{return value==='pro'||value==='business'}
 export function getPlanLimits(planType:BillingPlanCode){return PLAN_LIMITS[planType]}
-export function getWhopPlanId(plan:PaidBillingPlanCode){const value=process.env[WHOP_ENV_BY_PLAN[plan]]?.trim();if(!value)throw new Error(`${WHOP_ENV_BY_PLAN[plan]} is not configured`);return value}
-export function getPlanFromWhopPlanId(planId:string):PaidBillingPlanCode|null{for(const plan of ['pro','business'] as const){const value=process.env[WHOP_ENV_BY_PLAN[plan]]?.trim();if(value&&value===planId)return plan}return null}
+export function getWhopPlanId(plan:PaidBillingPlanCode){const value=process.env[WHOP_ENV_BY_PLAN[plan]]?.trim() || DEFAULT_WHOP_PLAN_IDS[plan];if(!value)throw new Error(`${WHOP_ENV_BY_PLAN[plan]} is not configured`);return value}
+export function getPlanFromWhopPlanId(planId:string):PaidBillingPlanCode|null{for(const plan of ['pro','business'] as const){const value=process.env[WHOP_ENV_BY_PLAN[plan]]?.trim() || DEFAULT_WHOP_PLAN_IDS[plan];if(value&&value===planId)return plan}return null}
 export function canAddLink(planType:BillingPlanCode,currentCount:number){const limit=PLAN_LIMITS[planType].links;return limit===-1||currentCount<limit}
 export function canAddProduct(planType:BillingPlanCode,currentCount:number){const limit=PLAN_LIMITS[planType].products;return limit===-1||currentCount<limit}
 export function canAddService(planType:BillingPlanCode,currentCount:number){const limit=PLAN_LIMITS[planType].services;return limit===-1||currentCount<limit}
