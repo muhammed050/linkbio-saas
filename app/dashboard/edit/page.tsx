@@ -5,6 +5,7 @@ import { getPage } from '@/lib/db/pages'
 import { getSections } from '@/lib/db/sections'
 import { createClient } from '@/lib/supabase/server'
 import EditorPolish from '@/components/dashboard/editor-polish'
+import SectionBuilder from '@/components/dashboard/section-builder'
 import { createPageAction } from './actions'
 import EditorStudio from './editor-studio-final'
 import styles from './editor.module.css'
@@ -20,5 +21,5 @@ export default async function EditPage(){
  const [{data:socials},{data:products},{data:services}]=await Promise.all([supabase.from('social_links').select('*').eq('page_id',page.id).order('position'),supabase.from('products').select('*').in('section_id',filterIds).order('position'),supabase.from('services').select('*').in('section_id',filterIds).order('position')]);
  const enriched=sections.map((s:any)=>({...s,links:[]})); const {data:links}=await supabase.from('links').select('*').in('section_id',filterIds).order('position');
  for(const link of links??[]){const section=enriched.find((s:any)=>s.id===link.section_id);if(section)section.links=[...(section.links||[]),link]}
- return <><EditorPolish/><EditorStudio profile={profile} page={page} sections={enriched} socials={socials??[]} products={products??[]} services={services??[]}/></>
+ return <><EditorPolish/><EditorStudio profile={profile} page={page} sections={enriched} socials={socials??[]} products={products??[]} services={services??[]}/><SectionBuilder pageId={page.id} initialSections={enriched} planType={profile.plan_type||'free'}/></>
 }
