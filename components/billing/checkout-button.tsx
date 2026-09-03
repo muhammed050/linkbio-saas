@@ -9,8 +9,6 @@ const TEST_PRO_PLAN_ID = "plan_LEZGjeiVurzLH";
 export function CheckoutButton({ plan }: { plan: "pro" | "business" }) {
   const [open, setOpen] = useState(false);
 
-  // Pro is wired to the verified Whop plan for the first live checkout test.
-  // Business stays on the existing server checkout flow until its Whop plan ID is configured.
   if (plan === "pro") {
     return (
       <>
@@ -27,50 +25,48 @@ export function CheckoutButton({ plan }: { plan: "pro" | "business" }) {
             style={{
               position: "fixed",
               inset: 0,
-              zIndex: 1000,
-              display: "grid",
-              placeItems: "center",
-              padding: "24px",
-              background: "rgba(0,0,0,.48)",
-            }}
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) setOpen(false);
+              zIndex: 9999,
+              width: "100vw",
+              height: "100dvh",
+              minHeight: "100vh",
+              margin: 0,
+              padding: 0,
+              background: "white",
+              overflow: "hidden",
             }}
           >
-            <div
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="إغلاق"
               style={{
-                position: "relative",
-                width: "min(100%, 520px)",
-                maxHeight: "92vh",
-                overflow: "auto",
-                borderRadius: "20px",
-                background: "white",
-                padding: "16px",
-                boxShadow: "0 24px 80px rgba(0,0,0,.22)",
+                position: "fixed",
+                top: "16px",
+                insetInlineEnd: "16px",
+                zIndex: 10001,
+                width: "40px",
+                height: "40px",
+                display: "grid",
+                placeItems: "center",
+                border: "1px solid rgba(0,0,0,.12)",
+                borderRadius: "50%",
+                background: "rgba(255,255,255,.92)",
+                boxShadow: "0 4px 20px rgba(0,0,0,.12)",
+                cursor: "pointer",
               }}
             >
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="إغلاق"
-                style={{
-                  position: "absolute",
-                  top: "12px",
-                  insetInlineEnd: "12px",
-                  zIndex: 2,
-                  width: "34px",
-                  height: "34px",
-                  display: "grid",
-                  placeItems: "center",
-                  border: 0,
-                  borderRadius: "50%",
-                  background: "rgba(0,0,0,.06)",
-                  cursor: "pointer",
-                }}
-              >
-                <X size={18} aria-hidden="true" />
-              </button>
+              <X size={20} aria-hidden="true" />
+            </button>
 
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                minHeight: "100dvh",
+                overflow: "auto",
+                padding: "0",
+              }}
+            >
               <WhopCheckoutEmbed
                 planId={TEST_PRO_PLAN_ID}
                 returnUrl="https://linkbio1-ten.vercel.app/pricing?checkout=success"
