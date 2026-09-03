@@ -6,165 +6,45 @@ type ProductContactMethod =
   | { checkout_url?: string | null; whatsapp_number: string }
 
 export async function getProducts(sectionId: string): Promise<Product[]> {
-  try {
-    const supabase = await createClient()
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('section_id', sectionId)
-      .order('position', { ascending: true })
-
-    if (error) throw error
-    return data || []
-  } catch (error) {
-    console.error('Error fetching products:', error)
-    return []
-  }
+  try { const supabase = await createClient(); const { data, error } = await supabase.from('products').select('*').eq('section_id', sectionId).order('position', { ascending: true }); if (error) throw error; return data || [] } catch (error) { console.error('Error fetching products:', error); return [] }
 }
 
 export async function getProduct(productId: string): Promise<Product | null> {
-  try {
-    const supabase = await createClient()
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', productId)
-      .single()
-
-    if (error) throw error
-    return data
-  } catch (error) {
-    console.error('Error fetching product:', error)
-    return null
-  }
+  try { const supabase = await createClient(); const { data, error } = await supabase.from('products').select('*').eq('id', productId).single(); if (error) throw error; return data } catch (error) { console.error('Error fetching product:', error); return null }
 }
 
-export async function createProduct(
-  sectionId: string,
-  data: Pick<Product, 'name' | 'price_cents'> &
-    ProductContactMethod &
-    Partial<Pick<Product, 'description' | 'currency'>>
-): Promise<Product | null> {
+export async function createProduct(sectionId: string, data: Pick<Product, 'name' | 'price_cents'> & ProductContactMethod & Partial<Pick<Product, 'description' | 'currency'>>): Promise<Product | null> {
   try {
     const supabase = await createClient()
-    
-    const { data: products } = await supabase
-      .from('products')
-      .select('position')
-      .eq('section_id', sectionId)
-      .order('position', { ascending: false })
-      .limit(1)
-
+    const { data: products } = await supabase.from('products').select('position').eq('section_id', sectionId).order('position', { ascending: false }).limit(1)
     const nextPosition = products && products.length > 0 ? products[0].position + 1 : 0
-
-    const { data: product, error } = await supabase
-      .from('products')
-      .insert({
-        section_id: sectionId,
-        name: data.name,
-        description: data.description || null,
-        price_cents: data.price_cents,
-        currency: data.currency || 'SAR',
-        checkout_url: data.checkout_url,
-        whatsapp_number: data.whatsapp_number || null,
-        position: nextPosition,
-        is_visible: true,
-      })
-      .select()
-      .single()
-
+    const { data: product, error } = await supabase.from('products').insert({ section_id: sectionId, name: data.name, description: data.description || null, price_cents: data.price_cents, currency: data.currency || 'USD', checkout_url: data.checkout_url, whatsapp_number: data.whatsapp_number || null, position: nextPosition, is_visible: true }).select().single()
     if (error) throw error
     return product
-  } catch (error) {
-    console.error('Error creating product:', error)
-    return null
-  }
+  } catch (error) { console.error('Error creating product:', error); return null }
 }
 
-export async function updateProduct(
-  productId: string,
-  updates: Partial<
-    Pick<
-      Product,
-      | 'name'
-      | 'description'
-        | 'price_cents'
-      | 'currency'
-        | 'checkout_url'
-      | 'whatsapp_number'
-      | 'is_visible'
-        | 'position'
-    >
-  >
-): Promise<Product | null> {
-  try {
-    const supabase = await createClient()
-    const { data, error } = await supabase
-      .from('products')
-      .update({
-        ...updates,
-      })
-      .eq('id', productId)
-      .select()
-      .single()
-
-    if (error) throw error
-    return data
-  } catch (error) {
-    console.error('Error updating product:', error)
-    return null
-  }
+export async function updateProduct(productId: string, updates: Partial<Pick<Product, 'name' | 'description' | 'price_cents' | 'currency' | 'checkout_url' | 'whatsapp_number' | 'is_visible' | 'position'>>): Promise<Product | null> {
+  try { const supabase = await createClient(); const { data, error } = await supabase.from('products').update(updates).eq('id', productId).select().single(); if (error) throw error; return data } catch (error) { console.error('Error updating product:', error); return null }
 }
 
 export async function deleteProduct(productId: string): Promise<boolean> {
-  try {
-    const supabase = await createClient()
-    const { error } = await supabase.from('products').delete().eq('id', productId)
-
-    if (error) throw error
-    return true
-  } catch (error) {
-    console.error('Error deleting product:', error)
-    return false
-  }
+  try { const supabase = await createClient(); const { error } = await supabase.from('products').delete().eq('id', productId); if (error) throw error; return true } catch (error) { console.error('Error deleting product:', error); return false }
 }
 
-export async function reorderProducts(
-  updates: Array<{ id: string; position: number }>
-): Promise<boolean> {
+export async function reorderProducts(updates: Array<{ id: string; position: number }>): Promise<boolean> {
+  if (updates.length === 0) return true
+  if (updates.some(({ id, position }) => !id || !Number.isInteger(position) || position < 0)) return false
   try {
     const supabase = await createClient()
-
-    const promises = updates.map(({ id, position }) =>
-      supabase
-        .from('products')
-        .update({
-          position,
-        })
-        .eq('id', id)
-    )
-
-    const results = await Promise.all(promises)
-    if (results.some(({ error }) => error)) throw new Error('Error reordering products')
+    const tempResults = await Promise.all(updates.map(({ id }, index) => supabase.from('products').update({ position: 1000000 + index }).eq('id', id)))
+    if (tempResults.some(({ error }) => error)) throw new Error('Error creating temporary product positions')
+    const finalResults = await Promise.all(updates.map(({ id, position }) => supabase.from('products').update({ position }).eq('id', id)))
+    if (finalResults.some(({ error }) => error)) throw new Error('Error applying product positions')
     return true
-  } catch (error) {
-    console.error('Error reordering products:', error)
-    return false
-  }
+  } catch (error) { console.error('Error reordering products:', error); return false }
 }
 
 export async function countProducts(sectionId: string): Promise<number> {
-  try {
-    const supabase = await createClient()
-    const { count, error } = await supabase
-      .from('products')
-      .select('*', { count: 'exact', head: true })
-      .eq('section_id', sectionId)
-
-    if (error) throw error
-    return count || 0
-  } catch (error) {
-    console.error('Error counting products:', error)
-    return 0
-  }
+  try { const supabase = await createClient(); const { count, error } = await supabase.from('products').select('*', { count: 'exact', head: true }).eq('section_id', sectionId); if (error) throw error; return count || 0 } catch (error) { console.error('Error counting products:', error); return 0 }
 }
