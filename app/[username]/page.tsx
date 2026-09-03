@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { unstable_cache } from 'next/cache'
 import { notFound } from 'next/navigation'
 import { TemplatePage } from '@/components/public/template-page'
 import { getTemplate, templates } from '@/components/public/template-data'
@@ -40,12 +39,6 @@ async function loadPublicProfile(username:string):Promise<PublicProfile|null>{
   }catch{return null}
 }
 
-function getPublicProfile(username:string){
-  const normalized=username.trim().toLowerCase()
-  if(!normalized)return Promise.resolve(null)
-  return unstable_cache(()=>loadPublicProfile(normalized),['public-profile',normalized],{revalidate:30})()
-}
-
 export function generateStaticParams(){return templates.map(({id})=>({username:id}))}
-export async function generateMetadata({params}:PageProps):Promise<Metadata>{const{username}=await params;const template=getTemplate(username);if(template)return{title:`${template.title} | لينكا`,description:template.bio};const profile=await getPublicProfile(username);if(!profile)return{title:'الصفحة غير متاحة | لينكا',robots:{index:false,follow:false}};return{title:`${profile.metadata.title} | لينكا`,description:profile.metadata.description??undefined,alternates:{canonical:`/${profile.username}`},openGraph:{title:profile.metadata.title,description:profile.metadata.description??undefined,type:'profile'}}}
-export default async function PublicProfileRoute({params}:PageProps){const{username}=await params;const template=getTemplate(username);if(template)return <TemplatePage template={template}/>;const profile=await getPublicProfile(username);if(!profile)notFound();return <PublicProfilePage profile={profile}/>} 
+export async function generateMetadata({params}:PageProps):Promise<Metadata>{const{username}=await params;const template=getTemplate(username);if(template)return{title:`${template.title} | لينكا`,description:template.bio};const profile=await loadPublicProfile(username.trim().toLowerCase());if(!profile)return{title:'الصفحة غير متاحة | لينكا',robots:{index:false,follow:false}};return{title:`${profile.metadata.title} | لينكا`,description:profile.metadata.description??undefined,alternates:{canonical:`/${profile.username}`},openGraph:{title:profile.metadata.title,description:profile.metadata.description??undefined,type:'profile'}}}
+export default async function PublicProfileRoute({params}:PageProps){const{username}=await params;const template=getTemplate(username);if(template)return <TemplatePage template={template}/>;const profile=await loadPublicProfile(username.trim().toLowerCase());if(!profile)notFound();return <PublicProfilePage profile={profile}/>} 
