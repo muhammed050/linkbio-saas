@@ -6,7 +6,7 @@ import { getSections } from '@/lib/db/sections'
 import { createClient } from '@/lib/supabase/server'
 import EditorPolish from '@/components/dashboard/editor-polish'
 import { createPageAction } from './actions'
-import EditorStudio from './editor-studio'
+import EditorStudio from './editor-studio-v2'
 import styles from './editor.module.css'
 
 export const dynamic='force-dynamic'
