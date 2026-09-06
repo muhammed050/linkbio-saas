@@ -4,6 +4,7 @@ import { getCurrentProfile } from "@/lib/auth/session"
 import { updatePage } from "@/lib/db/pages"
 import { createSection, deleteSection, updateSection } from "@/lib/db/sections"
 import { createLink, deleteLink, updateLink } from "@/lib/db/links"
+import type { Json } from "@/types"
 
 export async function saveStudioPage(input: {
   title: string
@@ -15,7 +16,7 @@ export async function saveStudioPage(input: {
   const page = await updatePage(profile.id, {
     title: input.title.trim().slice(0, 120),
     bio: input.bio.trim().slice(0, 500) || null,
-    theme: input.theme,
+    theme: input.theme as Json,
   })
   if (!page) throw new Error("SAVE_FAILED")
   return page
