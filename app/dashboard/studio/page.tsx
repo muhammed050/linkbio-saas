@@ -19,6 +19,7 @@ export default async function StudioPage() {
     }
 
     const sections = await getSections(page.id)
-    return <StudioClient page={page} sections={sections} username={profile.username} />
+    const theme = page.theme && typeof page.theme === "object" && !Array.isArray(page.theme) ? page.theme as Record<string, unknown> : {}
+    return <StudioClient page={{ ...page, theme }} sections={sections} username={profile.username} />
   })
 }
